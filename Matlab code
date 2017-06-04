@@ -1,0 +1,87 @@
+function FaceRecognition 
+clear 
+close all
+allsamples=[];
+for i=1:40
+    for j=1:5
+            a=imread(strcat('F:\技能提升\Face data\att_faces\s',num2str(i),'\',num2str(j),'.pgm'));
+            b=a(1:112*92);
+            b=double(b);
+            allsamples=[allsamples;b];
+    end
+end
+samplemean=mean(allsamples);%平均图片
+figure %平均图
+imshow(mat2gray(reshape(samplemean,112,92)));
+for i=1:200
+    xmean(i,:)=allsamples(i,:)-samplemean;
+end
+% figure 
+% imshow(mat2gray(reshape(xmean(1,:),112,92)));
+sigma=xmean*xmean';
+[v,d]=eig(sigma);
+d1=diag(d);
+[d2,index]=sort(d1);
+cols=size(v,2);
+
+for i=1:cols
+    vsort(:,i)=v(:,index(cols-i+1));%按降序排列的特征向量
+    dsort(i)=d1(index(cols-i+1))'; %按降序排列的特征值
+end
+dsum=sum(dsort);
+dsum_extract=0;
+p=0;
+while(dsum_extract/dsum<0.9)
+    p=p+1;
+    dsum_extract=sum(dsort(1:p));
+end
+a=1:1:200;
+for i=i:1:200
+    y(i)=sum(dsort(a(1:i)));
+end
+figure 
+y1=ones(1,200);
+plot(a,y/dsum,a,y1*0.9,'linewidth',2);
+grid on
+title('前n个特征占的能量比');
+xlabel('前n个特征值');  
+ylabel('占百分比');  
+figure  
+plot(a,dsort/dsum,'linewidth',2);  
+grid  
+title('第n个特征特占总的能量百分比');  
+xlabel('第n个特征值');  
+ylabel('占百分比');  
+i=1;  % (训练阶段)计算特征脸形成的坐标系  
+while (i<=p && dsort(i)>0)        
+    base(:,i) = dsort(i)^(-1/2) * xmean' * vsort(:,i);   % base是N×p阶矩阵，除以dsort(i)^(1/2)是对人脸图像的标准化，特征脸  
+      i = i + 1;   
+end   % add by wolfsky 就是下面两行代码，将训练样本对坐标系上进行投影,得到一个 M*p 阶矩阵allcoor     
+allcoor = allsamples * base; accu = 0;   % 测试过程  
+ 
+for i=1:40
+    for j=6:10
+            a=imread(strcat('F:\技能提升\Face data\att_faces\s',num2str(i),'\',num2str(j),'.pgm'));
+            b=a(1:112*92);
+            b=double(b);
+            tcoor= b * base; %计算坐标，是1×p阶矩阵       
+     for k=1:200                   
+            mdist(k)=norm(tcoor-allcoor(k,:));    %三阶近邻   
+     end
+        [dist,index2]=sort(mdist);            
+        class1=floor(index2(1)/5)+1;        
+        class2=floor(index2(2)/5)+1;          
+        class3=floor(index2(3)/5)+1;          
+        if class1~=class2 && class2~=class3   
+            class=class1;           
+        elseif class1==class2            
+            class=class1;           
+        elseif class2==class3       
+            class=class2;           
+        end;           
+        if class==i        
+            accu=accu+1;          
+        end;    
+    end;
+end
+accuracy=accu/200 %输出识别率  
